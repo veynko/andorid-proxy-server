@@ -258,6 +258,8 @@ class Socks5Handler(
     /**
      * Full-duplex data forwarding between client and remote host.
      * Two coroutines run concurrently, each copying in one direction.
+     * As soon as either direction closes, the other is cancelled so
+     * both sides tear down symmetrically.
      */
     private suspend fun forwardData(
         clientIn: InputStream,
@@ -291,9 +293,17 @@ class Socks5Handler(
             }
         }
 
-        // Wait for either direction to finish, then cancel the other
+        // Cancel both jobs as soon as either direction finishes
+        launch {
+            clientToRemote.join()
+            remoteToClient.cancel()
+        }
+        launch {
+            remoteToClient.join()
+            clientToRemote.cancel()
+        }
+
         clientToRemote.join()
-        remoteToClient.cancel()
         remoteToClient.join()
     }
 

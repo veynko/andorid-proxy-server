@@ -46,7 +46,10 @@ import com.veynko.proxyserver.viewmodel.ProxyViewModel
  * Main UI screen for controlling the SOCKS5 proxy server.
  */
 @Composable
-fun ProxyScreen(viewModel: ProxyViewModel = viewModel()) {
+fun ProxyScreen(
+    modifier: Modifier = Modifier,
+    viewModel: ProxyViewModel = viewModel()
+) {
     val state by viewModel.uiState.collectAsState()
 
     // Request POST_NOTIFICATIONS permission on Android 13+
@@ -60,7 +63,7 @@ fun ProxyScreen(viewModel: ProxyViewModel = viewModel()) {
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.Top,
