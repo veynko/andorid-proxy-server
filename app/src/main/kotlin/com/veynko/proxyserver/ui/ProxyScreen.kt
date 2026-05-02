@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -40,7 +41,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.veynko.proxyserver.R
 import com.veynko.proxyserver.ui.theme.GreenRunning
 import com.veynko.proxyserver.ui.theme.RedStopped
+import com.veynko.proxyserver.util.NetworkUtils
 import com.veynko.proxyserver.viewmodel.ProxyViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Main UI screen for controlling the SOCKS5 proxy server.
@@ -51,6 +55,10 @@ fun ProxyScreen(
     viewModel: ProxyViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    val localIpAddress by produceState<String?>(initialValue = null) {
+        value = withContext(Dispatchers.IO) { NetworkUtils.getLocalIpv4Address() }
+    }
 
     // Request POST_NOTIFICATIONS permission on Android 13+
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -81,7 +89,10 @@ fun ProxyScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Status indicator card
-        StatusCard(isRunning = state.isRunning)
+        StatusCard(
+            isRunning = state.isRunning,
+            localIpAddress = localIpAddress
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -196,7 +207,10 @@ fun ProxyScreen(
  * Card that shows the current running status of the proxy server.
  */
 @Composable
-private fun StatusCard(isRunning: Boolean) {
+private fun StatusCard(
+    isRunning: Boolean,
+    localIpAddress: String?
+) {
     val statusText = if (isRunning) "Running" else "Stopped"
     val statusColor = if (isRunning) GreenRunning else RedStopped
 
@@ -207,27 +221,37 @@ private fun StatusCard(isRunning: Boolean) {
         //     containerColor = statusColor.copy(alpha = 0.1f)
         // )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                painter = painterResource(
-                    id = if (isRunning) R.drawable.ic_circle_filled else R.drawable.ic_circle_outline
-                ),
-                contentDescription = null,
-                tint = statusColor,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.size(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    painter = painterResource(
+                        id = if (isRunning) R.drawable.ic_circle_filled else R.drawable.ic_circle_outline
+                    ),
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "Status: $statusText",
+                    color = statusColor,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
             Text(
-                text = "Status: $statusText",
-                color = statusColor,
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.titleMedium
+                text = "Local IP: ${localIpAddress ?: "Not available"}",
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
