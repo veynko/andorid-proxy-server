@@ -21,7 +21,8 @@ class Socks5Handler(
     private val clientSocket: Socket,
     private val authEnabled: Boolean,
     private val username: String,
-    private val password: String
+    private val password: String,
+    private val onConnectAttempt: ((host: String, port: Int) -> Unit)? = null
 ) {
     companion object {
         private const val TAG = "Socks5Handler"
@@ -218,6 +219,7 @@ class Socks5Handler(
         val port = (portHigh shl 8) or portLow
 
         Log.i(TAG, "CONNECT $host:$port")
+        onConnectAttempt?.invoke(host, port)
 
         return try {
             val remoteSocket = Socket()

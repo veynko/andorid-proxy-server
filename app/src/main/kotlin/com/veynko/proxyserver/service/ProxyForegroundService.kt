@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.veynko.proxyserver.MainActivity
 import com.veynko.proxyserver.R
 import com.veynko.proxyserver.network.Socks5Server
+import com.veynko.proxyserver.util.ConnectionLogBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -108,7 +109,10 @@ class ProxyForegroundService : Service() {
             port = port,
             authEnabled = authEnabled,
             username = username,
-            password = password
+            password = password,
+            onConnectAttempt = { host, remotePort ->
+                ConnectionLogBus.log(host, remotePort)
+            }
         )
         val started = server.start()
         if (started) {

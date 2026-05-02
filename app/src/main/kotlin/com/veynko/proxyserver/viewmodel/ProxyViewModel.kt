@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.veynko.proxyserver.service.ProxyForegroundService
+import com.veynko.proxyserver.util.ConnectionLogBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +20,7 @@ data class ProxyUiState(
     val username: String = "",
     val password: String = "",
     val isRunning: Boolean = false,
+    val connectionLogs: List<String> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -35,6 +37,19 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             ProxyForegroundService.isRunning.collect { running ->
                 _uiState.update { it.copy(isRunning = running) }
+            }
+        }
+
+        // Collect connection logs emitted by the proxy server (service)
+        viewModelScope.launch {
+            ConnectionLogBus.events.collect { entry ->
+                _uiState.update { current ->
+                    val next = buildList {
+                        add(entry)
+                        addAll(current.connectionLogs)
+                    }.take(200)
+                    current.copy(connectionLogs = next)
+                }
             }
         }
     }
@@ -74,7 +89,7 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        _uiState.update { it.copy(errorMessage = null) }
+        _uiState.update { it.copy(errorMessage = null, connectionLogs = emptyList()) }
         ProxyForegroundService.start(
             context = getApplication(),
             port = port,

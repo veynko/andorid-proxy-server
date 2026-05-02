@@ -21,7 +21,8 @@ class Socks5Server(
     private val port: Int,
     private val authEnabled: Boolean,
     private val username: String = "",
-    private val password: String = ""
+    private val password: String = "",
+    private val onConnectAttempt: ((host: String, port: Int) -> Unit)? = null
 ) {
     companion object {
         private const val TAG = "Socks5Server"
@@ -77,7 +78,8 @@ class Socks5Server(
                         clientSocket = clientSocket,
                         authEnabled = authEnabled,
                         username = username,
-                        password = password
+                        password = password,
+                        onConnectAttempt = onConnectAttempt
                     ).handle()
                 }
             } catch (e: Exception) {
