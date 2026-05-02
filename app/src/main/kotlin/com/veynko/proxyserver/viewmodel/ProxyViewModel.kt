@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.veynko.proxyserver.service.ProxyForegroundService
+import com.veynko.proxyserver.util.AuthSettingsStore
 import com.veynko.proxyserver.util.ConnectionLogBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,19 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<ProxyUiState> = _uiState.asStateFlow()
 
     init {
+        // Load persisted auth settings (authEnabled/username/password)
+        viewModelScope.launch {
+            AuthSettingsStore.flow(getApplication()).collect { settings ->
+                _uiState.update {
+                    it.copy(
+                        authEnabled = settings.authEnabled,
+                        username = settings.username,
+                        password = settings.password
+                    )
+                }
+            }
+        }
+
         // Mirror the service running state into the UI state
         viewModelScope.launch {
             ProxyForegroundService.isRunning.collect { running ->
@@ -60,14 +74,26 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onAuthEnabledChange(enabled: Boolean) {
         _uiState.update { it.copy(authEnabled = enabled) }
+
+        viewModelScope.launch {
+            AuthSettingsStore.setAuthEnabled(getApplication(), enabled)
+        }
     }
 
     fun onUsernameChange(value: String) {
         _uiState.update { it.copy(username = value) }
+
+        viewModelScope.launch {
+            AuthSettingsStore.setUsername(getApplication(), value)
+        }
     }
 
     fun onPasswordChange(value: String) {
         _uiState.update { it.copy(password = value) }
+
+        viewModelScope.launch {
+            AuthSettingsStore.setPassword(getApplication(), value)
+        }
     }
 
     /** Validates input and starts the proxy service. */
