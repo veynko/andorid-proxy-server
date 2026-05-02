@@ -203,9 +203,9 @@ private fun StatusCard(isRunning: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = statusColor.copy(alpha = 0.1f)
-        )
+        // colors = CardDefaults.cardColors(
+        //     containerColor = statusColor.copy(alpha = 0.1f)
+        // )
     ) {
         Row(
             modifier = Modifier
