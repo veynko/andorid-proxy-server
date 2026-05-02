@@ -101,16 +101,16 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
         val port = state.port.toIntOrNull()
         if (port == null || port !in 1..65535) {
-            _uiState.update { it.copy(errorMessage = "Port must be between 1 and 65535") }
+            _uiState.update { it.copy(errorMessage = "Порт должен быть между 1 и 65535") }
             return
         }
         if (state.authEnabled) {
             if (state.username.isBlank()) {
-                _uiState.update { it.copy(errorMessage = "Username cannot be empty") }
+                _uiState.update { it.copy(errorMessage = "Имя пользователя не может быть пустым") }
                 return
             }
             if (state.password.isBlank()) {
-                _uiState.update { it.copy(errorMessage = "Password cannot be empty") }
+                _uiState.update { it.copy(errorMessage = "Пароль не может быть пустым") }
                 return
             }
         }

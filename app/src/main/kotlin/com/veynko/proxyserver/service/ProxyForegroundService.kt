@@ -150,7 +150,7 @@ class ProxyForegroundService : Service() {
             "Proxy Server",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "SOCKS5 Proxy Server running notification"
+            description = "Уведомление о запуске Туда-сюда"
         }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -174,11 +174,11 @@ class ProxyForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("SOCKS5 Proxy Running")
-            .setContentText("Listening on port $port")
+            .setContentTitle("Туда сюда запущенно")
+            .setContentText("Слушает порт: $port")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
-            .addAction(0, "Stop", stopPendingIntent)
+            .addAction(0, "Остановить", stopPendingIntent)
             .setOngoing(true)
             .build()
     }

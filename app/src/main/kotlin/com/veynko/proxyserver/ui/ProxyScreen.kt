@@ -1,7 +1,10 @@
 package com.veynko.proxyserver.ui
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -22,18 +25,24 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +57,7 @@ import com.veynko.proxyserver.util.NetworkUtils
 import com.veynko.proxyserver.viewmodel.ProxyViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.net.Uri
 
 /**
  * Main UI screen for controlling the SOCKS5 proxy server.
@@ -58,6 +68,13 @@ fun ProxyScreen(
     viewModel: ProxyViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+
+    val batteryOptLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* result ignored */ }
 
     val screenScrollState = rememberScrollState()
 
@@ -87,7 +104,7 @@ fun ProxyScreen(
 
         // Title
         Text(
-            text = "SOCKS5 Proxy Server",
+            text = "Туда-сюда",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -110,7 +127,7 @@ fun ProxyScreen(
             Column(modifier = Modifier.padding(16.dp)) {
 
                 Text(
-                    text = "Configuration",
+                    text = "Настройки",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -121,7 +138,7 @@ fun ProxyScreen(
                 OutlinedTextField(
                     value = state.port,
                     onValueChange = viewModel::onPortChange,
-                    label = { Text("Port") },
+                    label = { Text("Порт") },
                     placeholder = { Text("1080") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
@@ -137,7 +154,7 @@ fun ProxyScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Enable Authentication")
+                    Text("Включить аутентификацию")
                     Switch(
                         checked = state.authEnabled,
                         onCheckedChange = viewModel::onAuthEnabledChange,
@@ -153,7 +170,7 @@ fun ProxyScreen(
                         OutlinedTextField(
                             value = state.username,
                             onValueChange = viewModel::onUsernameChange,
-                            label = { Text("Username") },
+                            label = { Text("Имя пользователя") },
                             singleLine = true,
                             enabled = !state.isRunning,
                             modifier = Modifier.fillMaxWidth()
@@ -164,7 +181,7 @@ fun ProxyScreen(
                         OutlinedTextField(
                             value = state.password,
                             onValueChange = viewModel::onPasswordChange,
-                            label = { Text("Password") },
+                            label = { Text("Пароль") },
                             singleLine = true,
                             enabled = !state.isRunning,
                             visualTransformation = PasswordVisualTransformation(),
@@ -190,8 +207,18 @@ fun ProxyScreen(
         // Start / Stop button
         Button(
             onClick = {
-                if (state.isRunning) viewModel.stopServer()
-                else viewModel.startServer()
+                if (state.isRunning) {
+                    viewModel.stopServer()
+                    return@Button
+                }
+
+                val powerManager = context.getSystemService(PowerManager::class.java)
+                val ignoringOptimizations = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+                if (!ignoringOptimizations) {
+                    showBatteryOptimizationDialog = true
+                } else {
+                    viewModel.startServer()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -201,9 +228,45 @@ fun ProxyScreen(
             )
         ) {
             Text(
-                text = if (state.isRunning) "Stop Server" else "Start Server",
+                text = if (state.isRunning) "Выключить" else "Включить",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (showBatteryOptimizationDialog) {
+            AlertDialog(
+                onDismissRequest = { showBatteryOptimizationDialog = false },
+                title = { Text("Отключить оптимизацию батареи") },
+                text = {
+                    Text(
+                        "Чтобы сохранить сервер прокси надежно работающим, исключите это приложение из оптимизации батареи."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBatteryOptimizationDialog = false
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                            batteryOptLauncher.launch(intent)
+                            viewModel.startServer()
+                        }
+                    ) {
+                        Text("Выключить оптимизацию")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showBatteryOptimizationDialog = false
+                            viewModel.startServer()
+                        }
+                    ) {
+                        Text("Пропустить")
+                    }
+                }
             )
         }
 
@@ -220,7 +283,7 @@ fun ProxyScreen(
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = "Connection logs",
+                    text = "Журнал подключений",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -230,7 +293,7 @@ fun ProxyScreen(
                 val logs = state.connectionLogs
                 if (logs.isEmpty()) {
                     Text(
-                        text = "No connections yet",
+                        text = "Подключений еще нет",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -263,7 +326,7 @@ private fun StatusCard(
     isRunning: Boolean,
     localIpAddress: String?
 ) {
-    val statusText = if (isRunning) "Running" else "Stopped"
+    val statusText = if (isRunning) "Запущен" else "Остановлен"
     val statusColor = if (isRunning) GreenRunning else RedStopped
 
     Card(
@@ -294,7 +357,7 @@ private fun StatusCard(
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    text = "Status: $statusText",
+                    text = "Статус: $statusText",
                     color = statusColor,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
@@ -302,7 +365,7 @@ private fun StatusCard(
             }
 
             Text(
-                text = "Local IP: ${localIpAddress ?: "Not available"}",
+                text = "Локальный адрес: ${localIpAddress ?: "Not available"}",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
