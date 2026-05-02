@@ -16,6 +16,7 @@ import com.veynko.proxyserver.network.Socks5Server
 import com.veynko.proxyserver.util.ConnectionLogBus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.net.BindException
 
 /**
  * Foreground service that hosts the SOCKS5 proxy server.
@@ -43,6 +44,10 @@ class ProxyForegroundService : Service() {
         /** Publicly observable running state. */
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning
+
+        /** Publicly observable last error (e.g. port already in use). */
+        private val _lastError = MutableStateFlow<String?>(null)
+        val lastError: StateFlow<String?> = _lastError
 
         /** Start the proxy service with the given configuration. */
         fun start(
@@ -99,6 +104,8 @@ class ProxyForegroundService : Service() {
     private fun startProxy(port: Int, authEnabled: Boolean, username: String, password: String) {
         Log.i(TAG, "Starting proxy on port $port, auth=$authEnabled")
 
+        _lastError.value = null
+
         // Start as a foreground service immediately
         startForeground(NOTIFICATION_ID, buildNotification(port))
 
@@ -120,7 +127,13 @@ class ProxyForegroundService : Service() {
             _isRunning.value = true
             Log.i(TAG, "Proxy started successfully on port $port")
         } else {
-            Log.e(TAG, "Failed to start proxy on port $port")
+            val message = when (server.lastStartException) {
+                is BindException -> "Порт $port уже используется"
+                else -> "Не удалось запустить прокси на порту $port"
+            }
+
+            _lastError.value = message
+            Log.e(TAG, message)
             _isRunning.value = false
             stopSelf()
         }
@@ -131,6 +144,7 @@ class ProxyForegroundService : Service() {
         proxyServer?.stop()
         proxyServer = null
         _isRunning.value = false
+        _lastError.value = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

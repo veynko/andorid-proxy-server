@@ -54,6 +54,13 @@ class ProxyViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Mirror the service error state into the UI state
+        viewModelScope.launch {
+            ProxyForegroundService.lastError.collect { error ->
+                _uiState.update { it.copy(errorMessage = error) }
+            }
+        }
+
         // Collect connection logs emitted by the proxy server (service)
         viewModelScope.launch {
             ConnectionLogBus.events.collect { entry ->

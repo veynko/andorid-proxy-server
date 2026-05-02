@@ -32,12 +32,16 @@ class Socks5Server(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var acceptJob: Job? = null
 
+    var lastStartException: Exception? = null
+        private set
+
     /**
      * Starts the server. Blocks until the server socket is bound.
      * Returns true on success, false if the port is already in use.
      */
     fun start(): Boolean {
         return try {
+            lastStartException = null
             val ss = ServerSocket()
             ss.reuseAddress = true
             ss.bind(InetSocketAddress("0.0.0.0", port))
@@ -49,6 +53,7 @@ class Socks5Server(
             }
             true
         } catch (e: Exception) {
+            lastStartException = e
             Log.e(TAG, "Failed to start server: ${e.message}")
             false
         }
